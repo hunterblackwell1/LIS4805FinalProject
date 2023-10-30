@@ -1,0 +1,54 @@
+---
+title: "Training Phase"
+author: "Hunter Blackwell"
+date: "2023-10-29"
+output: word_document
+---
+```{r setup, include=FALSE}
+# Load in wine quality data set
+wine <- read.csv("winequality.csv")
+summary(wine)
+str(wine)
+```
+
+
+```{r cars}
+# Divide data into training and validation sets
+train.index <- sample(c(1:dim(wine)[1]), dim(wine)[1]*0.6)
+valid.index <- setdiff(c(1:dim(wine)[1]), train.index)
+
+train.df <- wine[train.index, ]
+valid.df <- wine[-train.index, ]
+```
+
+## Including Plots
+
+You can also embed plots, for example:
+
+```{r}
+# Select variables to be used for training
+lm <- lm(quality ~ ., data = wine)
+options(scipen = 999)
+summary(lm)
+
+# Backward
+lm.back <- step(lm, direction = "backward")
+summary(lm.back)
+
+# Forward
+wine.lm.null <- lm(quality ~ 1, data = wine)
+lm.forward <- step(wine.lm.null, scope = list(lower = wine.lm.null, upper = lm), direction = "forward")
+summary(lm.forward)
+
+# Both
+lm.both <- step(lm, direction = "both")
+summary(lm.both)
+
+# Use volatile.acidity, chlorides, free.sulfur.dioxide, total.sulfur.dioxide, pH, sulphates, and alcohol.
+```
+
+```{r}
+# Fitted models
+
+```
+
