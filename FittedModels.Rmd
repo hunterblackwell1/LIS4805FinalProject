@@ -1,0 +1,134 @@
+---
+title: "Fitted Models"
+author: "Hunter Blackwell"
+date: "2023-11-06"
+output: word_document
+---
+
+```{r setup, include=FALSE}
+wine <- read.csv("winequality.csv")
+summary(wine)
+str(wine)
+```
+
+
+```{r}
+# Divide data into training and validation sets
+set.seed(1)
+train.index <- sample(c(1:dim(wine)[1]), dim(wine)[1]*0.6)
+valid.index <- setdiff(c(1:dim(wine)[1]), train.index)
+
+train.df <- wine[train.index, ]
+valid.df <- wine[-train.index, ]
+```
+
+
+```{r}
+# Select variables to be used for training
+lm <- lm(quality ~ ., data = wine)
+options(scipen = 999)
+summary(lm)
+
+# Backward
+lm.back <- step(lm, direction = "backward")
+summary(lm.back)
+
+# Forward
+wine.lm.null <- lm(quality ~ 1, data = wine)
+lm.forward <- step(wine.lm.null, scope = list(lower = wine.lm.null, upper = lm), direction = "forward")
+summary(lm.forward)
+
+# Both
+lm.both <- step(lm, direction = "both")
+summary(lm.both)
+
+# Exhaustive search to further narrow down model
+library(leaps)
+exhaust <- regsubsets(quality ~ ., data = train.df, nbest = 1, nvmax = dim(train.df)[2], method = "exhaustive")
+sum.exhaust <- summary(exhaust)
+sum.exhaust$which
+sum.exhaust$rsq
+sum.exhaust$adjr2
+
+# Use volatile.acidity, chlorides, free.sulfur.dioxide, total.sulfur.dioxide, pH, sulphates, and alcohol.
+```
+
+```{r}
+# Model 1 (Base Model)
+
+# Fit the model
+wine.lm <- lm(quality ~ volatile.acidity + chlorides + free.sulfur.dioxide + total.sulfur.dioxide + pH + sulphates + alcohol, data = train.df)
+options(scipen = 999)
+summary(wine.lm)
+
+# Make predictions
+library(forecast)
+
+wine.lm.predict <- predict(wine.lm, valid.df)
+some.residuals <- valid.df$quality - wine.lm.predict
+pred.results <- data.frame("Predicted" = wine.lm.predict, "Actual" = valid.df$quality, "Residual" = some.residuals)
+
+pred.results
+
+# Compute accuracy measures
+acc <- accuracy(wine.lm.predict, valid.df$quality)
+acc
+
+# 10 fold cross validation result
+library(caret)
+fold <- train(quality ~ volatile.acidity + chlorides + free.sulfur.dioxide + total.sulfur.dioxide + pH + sulphates + alcohol, data = train.df, method = "lm", trControl = trainControl(method = "cv", number = 10))
+fold
+
+# Percentage of accurate predictions
+percent.accurate <- ((length(which(round(pred.results$Predicted, digits = 0) == pred.results$Actual))) / length(pred.results$Predicted)) 
+percent.accurate
+
+```
+
+```{r}
+# Model 2 (Improved Model)
+
+# Check for outliers to remove
+summary(wine)
+# Of the 7 variables used, Total sulfur dioxide and free sulfure dioxide have potential outliers
+# Remove upper and lower 10% of both to make data more accurate
+wine.trim <- as.data.table(wine)
+wine.trim <- wine.trim[total.sulfur.dioxide >= quantile(total.sulfur.dioxide, 0.1) & total.sulfur.dioxide <= quantile(total.sulfur.dioxide, 0.9)]
+
+wine.trim <- wine.trim[free.sulfur.dioxide >= quantile(free.sulfur.dioxide, 0.1) & free.sulfur.dioxide <= quantile(free.sulfur.dioxide, 0.9)]
+
+summary(wine.trim)
+
+# Resplit data
+set.seed(4)
+train.index1 <- sample(c(1:dim(wine.trim)[1]), dim(wine.trim)[1]*0.6)
+valid.index1 <- setdiff(c(1:dim(wine.trim)[1]), train.index1)
+
+train.df1 <- wine.trim[train.index1, ]
+valid.df1 <- wine.trim[-train.index1, ]
+
+# Fit the model
+wine.lm1 <- lm(quality ~ volatile.acidity + chlorides + free.sulfur.dioxide + total.sulfur.dioxide + pH + sulphates + alcohol, data = train.df1)
+options(scipen = 999)
+summary(wine.lm1)
+
+# Make predictions
+wine.lm.predict1 <- predict(wine.lm1, valid.df1)
+some.residuals1 <- valid.df1$quality - wine.lm.predict1
+pred.results1 <- data.frame("Predicted" = wine.lm.predict1, "Actual" = valid.df1$quality, "Residual" = some.residuals1)
+
+pred.results1
+
+# Compute accuracy measures
+acc1 <- accuracy(wine.lm.predict1, valid.df1$quality)
+acc1
+
+# 10 fold cross validation result
+fold1 <- train(quality ~ volatile.acidity + chlorides + free.sulfur.dioxide + total.sulfur.dioxide + pH + sulphates + alcohol, data = train.df1, method = "lm", trControl = trainControl(method = "cv", number = 10))
+fold1
+
+# Percentage of accurate predictions
+percent.accurate1 <- ((length(which(round(pred.results1$Predicted, digits = 0) == pred.results1$Actual))) / length(pred.results1$Predicted)) 
+percent.accurate1
+
+```
