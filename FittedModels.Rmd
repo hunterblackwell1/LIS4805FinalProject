@@ -78,10 +78,16 @@ acc # RMSE of 0.64876
 library(caret)
 fold <- train(quality ~ volatile.acidity + chlorides + free.sulfur.dioxide + total.sulfur.dioxide + pH + sulphates + alcohol, data = train.df, method = "lm", trControl = trainControl(method = "cv", number = 10))
 fold # RMSE of 0.64788
+# Use 10 fold cross validation result to make new predictions
+fold.predict <- predict(fold, valid.df)
+fold.residuals <- valid.df$quality - fold.predict
+fold.results <- data.frame("Predicted" = fold.predict, "Actual" = valid.df$quality, "Residual" = fold.residuals)
+cm.fold <- confusionMatrix(data = as.factor(round(fold.results$Predicted)), reference = as.factor(valid.df$quality))
+cm.fold # 59.06% accuracy
 
 # Percentage of accurate predictions
 percent.accurate <- (((length(which(round(pred.results$Predicted, digits = 0) == pred.results$Actual))) / length(pred.results$Predicted))) * 100
-percent.accurate # 59.06% accurate
+percent.accurate # 59.06% accurate, same as 10 fold cross validation accuracy
 
 # Confusion Matrix
 cm.1 <- confusionMatrix(data = as.factor(round(pred.results$Predicted)), reference = as.factor(valid.df$quality))
@@ -131,6 +137,12 @@ acc1 # .6004 RMSE compared to 0.64876 RMSE of base model
 # 10 fold cross validation result
 fold1 <- train(quality ~ volatile.acidity + chlorides + free.sulfur.dioxide + total.sulfur.dioxide + pH + sulphates + alcohol, data = train.df1, method = "lm", trControl = trainControl(method = "cv", number = 10))
 fold1 # 0.65302 RMSE compared to 0.64788 RMSE of base model
+# Use 10 fold cross validation result to make new predictions
+fold1.predict <- predict(fold1, valid.df)
+fold1.residuals <- valid.df$quality - fold1.predict
+fold1.results <- data.frame("Predicted" = fold1.predict, "Actual" = valid.df$quality, "Residual" = fold1.residuals)
+cm.fold1 <- confusionMatrix(data = as.factor(round(fold1.results$Predicted)), reference = as.factor(valid.df$quality))
+cm.fold1 # 58.12 accuracy for 10 fold cross validation, lower than the base model.
 
 # Percentage of accurate predictions
 percent.accurate1 <- (((length(which(round(pred.results1$Predicted, digits = 0) == pred.results1$Actual))) / length(pred.results1$Predicted))) * 100
@@ -138,8 +150,7 @@ percent.accurate1 # 64.35% accuracy
 
 # Confusion Matrix
 cm.2 <- confusionMatrix(data = as.factor(round(pred.results1$Predicted)), reference = as.factor(valid.df1$quality))
-cm.2 # Confusion matrix confirms 64.35% accuracy
-
+cm.2 # Confusion matrix confirms 64.35% accuracy, which is higher than the base model and higher than the 10 fold cross validation accuracy.
 ```
 ```{r}
 #Make new splits
