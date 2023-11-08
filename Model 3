@@ -6,7 +6,7 @@ valid.index5 <- setdiff(c(1:dim(wine)[1]), train.index)
 train.df5 <- wine[train.index5, ]
 valid.df5 <- wine[-train.index5, ]
 
-#regression tree
+#regression tree 
 rtree.fit = rpart(quality ~ volatile.acidity + chlorides + free.sulfur.dioxide
                   + total.sulfur.dioxide + pH + sulphates + alcohol, data = train.df5
                   , method = "anova"
