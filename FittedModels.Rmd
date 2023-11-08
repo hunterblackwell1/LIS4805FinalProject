@@ -5,7 +5,8 @@ date: "2023-11-06"
 output: word_document
 ---
 
-```{r setup, include=FALSE}
+```{r setup}
+# Load in wine dataset and examine the data
 wine <- read.csv("winequality.csv")
 summary(wine)
 str(wine)
@@ -56,33 +57,35 @@ sum.exhaust$adjr2
 ```{r}
 # Model 1 (Base Model)
 
-# Fit the model
+# Fit the base model
 wine.lm <- lm(quality ~ volatile.acidity + chlorides + free.sulfur.dioxide + total.sulfur.dioxide + pH + sulphates + alcohol, data = train.df)
 options(scipen = 999)
 summary(wine.lm)
 
 # Make predictions
 library(forecast)
-
 wine.lm.predict <- predict(wine.lm, valid.df)
 some.residuals <- valid.df$quality - wine.lm.predict
 pred.results <- data.frame("Predicted" = wine.lm.predict, "Actual" = valid.df$quality, "Residual" = some.residuals)
 
-pred.results
+#pred.results
 
 # Compute accuracy measures
 acc <- accuracy(wine.lm.predict, valid.df$quality)
-acc
+acc # RMSE of 0.64876
 
 # 10 fold cross validation result
 library(caret)
 fold <- train(quality ~ volatile.acidity + chlorides + free.sulfur.dioxide + total.sulfur.dioxide + pH + sulphates + alcohol, data = train.df, method = "lm", trControl = trainControl(method = "cv", number = 10))
-fold
+fold # RMSE of 0.64788
 
 # Percentage of accurate predictions
-percent.accurate <- ((length(which(round(pred.results$Predicted, digits = 0) == pred.results$Actual))) / length(pred.results$Predicted)) 
-percent.accurate
+percent.accurate <- (((length(which(round(pred.results$Predicted, digits = 0) == pred.results$Actual))) / length(pred.results$Predicted))) * 100
+percent.accurate # 59.06% accurate
 
+# Confusion Matrix
+cm.1 <- confusionMatrix(data = as.factor(round(pred.results$Predicted)), reference = as.factor(valid.df$quality))
+cm.1 # Confusion matrix confirms 59.06% accuracy
 ```
 
 ```{r}
@@ -92,11 +95,13 @@ percent.accurate
 summary(wine)
 # Of the 7 variables used, Total sulfur dioxide and free sulfure dioxide have potential outliers
 # Remove upper and lower 10% of both to make data more accurate
+library(data.table)
 wine.trim <- as.data.table(wine)
+# Total sulfur dioxide
 wine.trim <- wine.trim[total.sulfur.dioxide >= quantile(total.sulfur.dioxide, 0.1) & total.sulfur.dioxide <= quantile(total.sulfur.dioxide, 0.9)]
-
+# Free sulfur dioxide
 wine.trim <- wine.trim[free.sulfur.dioxide >= quantile(free.sulfur.dioxide, 0.1) & free.sulfur.dioxide <= quantile(free.sulfur.dioxide, 0.9)]
-
+#Exam data to find less spread among total and free sulfur dioxide
 summary(wine.trim)
 
 # Resplit data
@@ -117,18 +122,76 @@ wine.lm.predict1 <- predict(wine.lm1, valid.df1)
 some.residuals1 <- valid.df1$quality - wine.lm.predict1
 pred.results1 <- data.frame("Predicted" = wine.lm.predict1, "Actual" = valid.df1$quality, "Residual" = some.residuals1)
 
-pred.results1
+#pred.results1
 
 # Compute accuracy measures
 acc1 <- accuracy(wine.lm.predict1, valid.df1$quality)
-acc1
+acc1 # .6004 RMSE compared to 0.64876 RMSE of base model
 
 # 10 fold cross validation result
 fold1 <- train(quality ~ volatile.acidity + chlorides + free.sulfur.dioxide + total.sulfur.dioxide + pH + sulphates + alcohol, data = train.df1, method = "lm", trControl = trainControl(method = "cv", number = 10))
-fold1
+fold1 # 0.65302 RMSE compared to 0.64788 RMSE of base model
 
 # Percentage of accurate predictions
-percent.accurate1 <- ((length(which(round(pred.results1$Predicted, digits = 0) == pred.results1$Actual))) / length(pred.results1$Predicted)) 
-percent.accurate1
+percent.accurate1 <- (((length(which(round(pred.results1$Predicted, digits = 0) == pred.results1$Actual))) / length(pred.results1$Predicted))) * 100
+percent.accurate1 # 64.35% accuracy
+
+# Confusion Matrix
+cm.2 <- confusionMatrix(data = as.factor(round(pred.results1$Predicted)), reference = as.factor(valid.df1$quality))
+cm.2 # Confusion matrix confirms 64.35% accuracy
 
 ```
+```{r}
+#Make new splits
+set.seed(5)
+train.index5 <- sample(c(1:dim(wine)[1]), dim(wine)[1]*0.6)
+valid.index5 <- setdiff(c(1:dim(wine)[1]), train.index)
+
+train.df5 <- wine[train.index5, ]
+valid.df5 <- wine[-train.index5, ]
+
+#regression tree 
+library(rpart)
+rtree.fit = rpart(quality ~ volatile.acidity + chlorides + free.sulfur.dioxide
+                  + total.sulfur.dioxide + pH + sulphates + alcohol, data = train.df5
+                  , method = "anova"
+                  , control = rpart.control(minsplit = 30, cp = .001))
+
+#prints complexity parameter table 
+printcp(rtree.fit)
+
+# Produces 2 plots. The first plots the r-square (apparent and apparent - from cross-validation) versus the number of splits. The second plots the Relative Error(cross-validation) +/- 1-SE from cross-validation versus the number of splits.
+rsq.rpart(rtree.fit)
+
+# plots the cross-validation results across 
+plotcp(rtree.fit)
+
+# Detailed results including surrogate splits 
+#summary(rtree.fit)
+
+#ugly tree
+library(text)
+library(textplot)
+library(rpart.plot)
+plot(rtree.fit, uniform=TRUE, 
+     main="Regression Tree for Quality fo Wine")
+text(rtree.fit, use.n=TRUE, all=TRUE, cex=.8)
+
+#better printed tree
+library(rpart.plot)
+prp(rtree.fit)
+cor(predict(rtree.fit, newdata = valid.df5),valid.df5$quality)^2
+
+#Tried to prune the tree for better accuracy
+pruned.rtree.fit<- prune(rtree.fit, cp= rtree.fit$cptable[which.min(rtree.fit$cptable[,"xerror"]),"CP"])
+prp(pruned.rtree.fit, main="Pruned Regression Tree for Quality of Wine")
+#Doesn't occur
+cor(predict(pruned.rtree.fit, newdata = valid.df5),valid.df5$quality)^2
+
+#Tried again
+pruned2.rtree.fit = prune(rtree.fit, cp =.01)
+prp(pruned2.rtree.fit, main = "Pruned Regression Tree for Quality of Wine")
+#Doesn't occur
+cor(predict(pruned2.rtree.fit, newdata = valid.df5),valid.df5$quality)^2
+```
+
