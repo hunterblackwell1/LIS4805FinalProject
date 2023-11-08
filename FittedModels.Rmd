@@ -1,6 +1,6 @@
 ---
 title: "Fitted Models"
-author: "Hunter Blackwell"
+author: "Hunter Blackwell, Marc Flores, Jeremy Iyonawan"
 date: "2023-11-06"
 output: word_document
 ---
