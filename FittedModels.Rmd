@@ -138,19 +138,19 @@ acc1 # .6004 RMSE compared to 0.64876 RMSE of base model
 fold1 <- train(quality ~ volatile.acidity + chlorides + free.sulfur.dioxide + total.sulfur.dioxide + pH + sulphates + alcohol, data = train.df1, method = "lm", trControl = trainControl(method = "cv", number = 10))
 fold1 # 0.65302 RMSE compared to 0.64788 RMSE of base model
 # Use 10 fold cross validation result to make new predictions
-fold1.predict <- predict(fold1, valid.df)
-fold1.residuals <- valid.df$quality - fold1.predict
-fold1.results <- data.frame("Predicted" = fold1.predict, "Actual" = valid.df$quality, "Residual" = fold1.residuals)
-cm.fold1 <- confusionMatrix(data = as.factor(round(fold1.results$Predicted)), reference = as.factor(valid.df$quality))
-cm.fold1 # 58.12 accuracy for 10 fold cross validation, lower than the base model.
+fold1.predict <- predict(fold1, valid.df1)
+fold1.residuals <- valid.df1$quality - fold1.predict
+fold1.results <- data.frame("Predicted" = fold1.predict, "Actual" = valid.df1$quality, "Residual" = fold1.residuals)
+cm.fold1 <- confusionMatrix(data = as.factor(round(fold1.results$Predicted)), reference = as.factor(valid.df1$quality))
+cm.fold1 # 64.35% accuracy for 10 fold cross validation, higher than the base model.
 
 # Percentage of accurate predictions
 percent.accurate1 <- (((length(which(round(pred.results1$Predicted, digits = 0) == pred.results1$Actual))) / length(pred.results1$Predicted))) * 100
-percent.accurate1 # 64.35% accuracy
+percent.accurate1 # 64.35% accuracy, same as 10 fold cross validation result
 
 # Confusion Matrix
 cm.2 <- confusionMatrix(data = as.factor(round(pred.results1$Predicted)), reference = as.factor(valid.df1$quality))
-cm.2 # Confusion matrix confirms 64.35% accuracy, which is higher than the base model and higher than the 10 fold cross validation accuracy.
+cm.2 # Confusion matrix confirms 64.35% accuracy, which is higher than the base model and the same as the 10 fold cross validation accuracy.
 ```
 ```{r}
 #Make new splits
@@ -168,6 +168,15 @@ rtree.fit = rpart(quality ~ volatile.acidity + chlorides + free.sulfur.dioxide
                   , method = "anova"
                   , control = rpart.control(minsplit = 30, cp = .001))
 
+# 10 fold cross validation
+fold2 <- train(quality ~ volatile.acidity + chlorides + free.sulfur.dioxide + total.sulfur.dioxide + pH + sulphates + alcohol, data = train.df5, method = "rpart", trControl = trainControl(method = "cv", number = 10))
+fold2 # 0.72253, 0.73945, and 0.78887 RMSE compared to 0.64788 RMSE of base model and 0.65302 of improved model
+# Use 10 fold cross validation result to make new predictions
+fold2.predict <- predict(fold2, valid.df5)
+fold2.residuals <- valid.df5$quality - fold2.predict
+fold2.results <- data.frame("Predicted" = fold2.predict, "Actual" = valid.df5$quality, "Residual" = fold2.residuals)
+cm.fold2 <- confusionMatrix(data = as.factor(round(fold2.results$Predicted)), reference = as.factor(valid.df5$quality))
+cm.fold2 # 55.16% accuracy
 #prints complexity parameter table 
 printcp(rtree.fit)
 
